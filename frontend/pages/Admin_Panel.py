@@ -13,6 +13,8 @@ st.markdown('''
 .metric-box { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); border: 1px solid #ffe4e8;}
 .metric-title { font-size:16px; color:#555; }
 .metric-value { font-size:32px; font-weight:700; color:#ff6b81; }
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 </style>
 ''', unsafe_allow_html=True)
 
