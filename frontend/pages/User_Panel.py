@@ -21,6 +21,8 @@ st.markdown('''
 }
 .to-label { text-align:center; font-size:1.4rem; font-weight:bold; color:#ff6b81; }
 .stButton>button { background-color:#ff6b81; color:white; border:none; border-radius:8px; }
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 </style>
 ''', unsafe_allow_html=True)
 
