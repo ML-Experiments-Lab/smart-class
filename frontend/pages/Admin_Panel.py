@@ -39,9 +39,9 @@ with tab1:
                 if upload_type == "Classroom":
                     # For classroom, we also send the default sheet name
                     data["sheet_name"] = "FEST_Room Occupancy" 
-                    url = "http://127.0.0.1:8000/admin/upload/classroom"
+                    url = "https://smart-class-api-xez6.onrender.com/admin/upload/classroom"
                 else:
-                    url = "http://127.0.0.1:8000/admin/upload/lab"
+                    url = "https://smart-class-api-xez6.onrender.com/admin/upload/lab"
                     
                 res = requests.post(url, files=files, data=data)
                 
@@ -58,7 +58,7 @@ with tab2:
     
     # Fetch resource names dynamically from the backend
     try:
-        res_req = requests.get(f"http://127.0.0.1:8000/resources?resource_type={ut_type}")
+        res_req = requests.get(f"https://smart-class-api-xez6.onrender.com/resources?resource_type={ut_type}")
         available_resources = res_req.json().get("resources", []) if res_req.status_code == 200 else []
     except requests.exceptions.ConnectionError:
         available_resources = []
@@ -71,7 +71,7 @@ with tab2:
     if st.button("Generate Analysis"):
         with st.spinner("Calculating..."):
             payload = {"resource_type": ut_type, "selected_resource": ut_resource}
-            res = requests.post("http://127.0.0.1:8000/utility", json=payload)
+            res = requests.post("https://smart-class-api-xez6.onrender.com/utility", json=payload)
             
             if res.status_code == 200:
                 data = res.json()
@@ -121,7 +121,7 @@ with tab2:
 with tab3:
     st.subheader("All Bookings")
     if st.button("Refresh Logs"):
-        res = requests.get("http://127.0.0.1:8000/admin/bookings")
+        res = requests.get("https://smart-class-api-xez6.onrender.com/admin/bookings")
         if res.status_code == 200:
             logs = res.json()
             if logs:
