@@ -9,6 +9,7 @@ st.markdown('''
 .stApp { background-color: #fff0f5; }
 .stButton>button { background-color:#ff6b81; color:white; border-radius:8px; border: none; font-weight: 600; padding: 0.5rem 1rem;}
 .main-header { background-color: #ffc1cc; padding: 20px; text-align: center; border-radius: 10px; font-size: 24px; font-weight: bold; margin-bottom: 20px;}
+[data-testid="stSidebarNav"] {display: none;}
 </style>
 ''', unsafe_allow_html=True)
 
