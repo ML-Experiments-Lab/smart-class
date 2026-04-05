@@ -20,7 +20,7 @@ if "role" not in st.session_state:
     st.session_state.email = None
 
 # Base URL for FastAPI backend
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://smart-class-api-xez6.onrender.com"
 
 if st.session_state.role is None:
     tab1, tab2 = st.tabs(["Login", "Register"])
