@@ -62,7 +62,7 @@ if st.button("Search Available Slots", use_container_width=True):
         }
         
         with st.spinner("Searching..."):
-            res = requests.post("http://127.0.0.1:8000/search", json=payload)
+            res = requests.post("https://smart-class-api-xez6.onrender.com/search", json=payload)
             
             if res.status_code == 200:
                 st.session_state.search_results = res.json().get("slots", [])
@@ -125,7 +125,7 @@ if st.session_state.get("search_results") is not None:
                         "purpose": st.session_state.purpose
                     }
                     
-                    b_res = requests.post("http://127.0.0.1:8000/book", json=book_payload)
+                    b_res = requests.post("https://smart-class-api-xez6.onrender.com/book", json=book_payload)
                     if b_res.status_code != 200:
                         all_success = False
                         st.error(f"Failed to book {res_name}: {b_res.json().get('detail')}")
