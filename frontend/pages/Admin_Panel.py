@@ -122,9 +122,8 @@ with tab3:
     st.subheader("All Bookings")
 
     if st.button("Refresh Logs"):
-        st.session_state["refresh_logs"] = True
+        st.rerun()
 
-    # Fetch logs
     try:
         res = requests.get("https://smart-class-api-xez6.onrender.com/admin/bookings")
 
@@ -134,54 +133,55 @@ with tab3:
             if logs:
                 df = pd.DataFrame(logs)
 
-                # Show table (clean)
-                st.dataframe(df, width='stretch', hide_index=True)
+                # ✅ Header row (clean UI like table)
+                header = st.columns([2,1,1,1,2,1,1])
+                header[0].markdown("**Email**")
+                header[1].markdown("**Type**")
+                header[2].markdown("**Resource**")
+                header[3].markdown("**Date**")
+                header[4].markdown("**Time Slot**")
+                header[5].markdown("**Purpose**")
+                header[6].markdown("**Action**")
 
-                st.markdown("### ❌ Cancel Booking (Row-wise)")
+                st.markdown("---")
 
-                # Loop each row with cancel button
+                # ✅ Rows
                 for i, row in df.iterrows():
-                    with st.container():
-                        col1, col2 = st.columns([8, 1])
+                    cols = st.columns([2,1,1,1,2,1,1])
 
-                        # Show row info nicely
-                        with col1:
-                            st.markdown(f"""
-                            **📧 Email:** {row['Email']}  
-                            **🏫 Type:** {row['Type']}  
-                            **📍 Resource:** {row['Resource']}  
-                            **📅 Date:** {row['Date']}  
-                            **⏰ Time:** {row['Time Slot']}  
-                            **📝 Purpose:** {row['Purpose']}
-                            """)
+                    cols[0].write(row["Email"])
+                    cols[1].write(row["Type"])
+                    cols[2].write(row["Resource"])
+                    cols[3].write(str(row["Date"]))
+                    cols[4].write(row["Time Slot"])
+                    cols[5].write(row["Purpose"])
 
-                        # Cancel button
-                        with col2:
-                            if st.button("❌ Cancel", key=f"cancel_{i}"):
+                    # ✅ Cancel button (same row)
+                    if cols[6].button("❌ Cancel", key=f"cancel_{i}"):
 
-                                payload = {
-                                    "email": row["Email"],
-                                    "resource_type": row["Type"],
-                                    "resource_name": row["Resource"],
-                                    "date": str(row["Date"]),
-                                    "time_slots": row["Time Slot"].split(" | ")
-                                }
+                        payload = {
+                            "email": row["Email"],
+                            "resource_type": row["Type"],
+                            "resource_name": row["Resource"],
+                            "date": str(row["Date"]),
+                            "time_slots": row["Time Slot"].split(" | ")
+                        }
 
-                                cancel_res = requests.post(
-                                    "https://smart-class-api-xez6.onrender.com/admin/cancel",
-                                    json=payload
-                                )
+                        cancel_res = requests.post(
+                            "https://smart-class-api-xez6.onrender.com/admin/cancel",
+                            json=payload
+                        )
 
-                                if cancel_res.status_code == 200:
-                                    st.success("Booking cancelled successfully ✅")
-                                    st.rerun()
-                                else:
-                                    try:
-                                        st.error(cancel_res.json().get("detail", "Error cancelling booking"))
-                                    except:
-                                        st.error(f"Error: {cancel_res.text}")
+                        if cancel_res.status_code == 200:
+                            st.success("Booking cancelled successfully ✅")
+                            st.rerun()
+                        else:
+                            try:
+                                st.error(cancel_res.json().get("detail", "Error cancelling booking"))
+                            except:
+                                st.error(f"Error: {cancel_res.text}")
 
-                        st.divider()
+                    st.markdown("---")
 
             else:
                 st.info("No bookings found yet.")
