@@ -120,12 +120,40 @@ with tab2:
 
 with tab3:
     st.subheader("All Bookings")
+
     if st.button("Refresh Logs"):
         res = requests.get("https://smart-class-api-xez6.onrender.com/admin/bookings")
+
         if res.status_code == 200:
             logs = res.json()
+
             if logs:
-                st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+                df = pd.DataFrame(logs)
+
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+                st.markdown("### ❌ Cancel Booking")
+
+                booking_index = st.number_input(
+                    "Enter booking index to cancel",
+                    min_value=0,
+                    max_value=len(df)-1,
+                    step=1
+                )
+
+                if st.button("Cancel Booking"):
+                    payload = {"index": int(booking_index)}
+
+                    cancel_res = requests.post(
+                        "https://smart-class-api-xez6.onrender.com/admin/cancel",
+                        json=payload
+                    )
+
+                    if cancel_res.status_code == 200:
+                        st.success("Booking cancelled successfully ✅")
+                    else:
+                        st.error(cancel_res.json().get("detail", "Error cancelling booking"))
+
             else:
                 st.info("No bookings found yet.")
         else:
