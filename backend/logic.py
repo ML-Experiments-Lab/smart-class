@@ -97,7 +97,7 @@ def log_booking(email, resource_type, resource_name, time_slot, date, purpose):
         
     new_booking = pd.DataFrame([{
         "Email": email, "Type": resource_type, "Resource": resource_name, 
-        "Date": date, "time_slot": "|".join(time_slot.split("|")), "Purpose": purpose
+        "Date": date, "Time Slot": time_slot, "Purpose": purpose
     }])
     df = pd.concat([df, new_booking], ignore_index=True)
     df.to_excel(BOOKINGS_FILE, index=False)
