@@ -157,53 +157,20 @@ def get_utility(req: UtilityRequest):
 
 @app.post("/admin/cancel")
 def cancel_booking(data: dict):
-    """
-    Cancels a booking:
-    - Removes entry from bookings.xlsx
-    - Frees slot in timetable
-    """
+    email = data.get("email")
+    resource_type = data.get("resource_type")
+    resource_name = data.get("resource_name")
+    date = data.get("date")
+    time_slots = data.get("time_slots")
 
-    booking_index = data.get("index")
+    if not all([email, resource_type, resource_name, date, time_slots]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
 
-    if booking_index is None:
-        raise HTTPException(status_code=400, detail="Booking index required")
+    result = logic.cancel_booking(
+        email, resource_type, resource_name, date, time_slots
+    )
 
-    # Load bookings
-    if not os.path.exists(logic.BOOKINGS_FILE):
-        raise HTTPException(status_code=400, detail="No bookings file found")
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
 
-    df = pd.read_excel(logic.BOOKINGS_FILE)
-
-    if booking_index >= len(df):
-        raise HTTPException(status_code=400, detail="Invalid booking index")
-
-    booking = df.iloc[booking_index]
-
-    resource_type = booking["Type"]
-    resource_name = booking["Resource"]
-    date = booking["Date"]
-    time_slot = booking["Time Slot"]
-
-    # Convert date → month
-    import datetime
-    selected_date = datetime.datetime.strptime(date, "%Y-%m-%d")
-    month_name = selected_date.strftime("%b")
-
-    file_to_check = logic.CR_TIMETABLE_FILE if resource_type == "Classroom" else logic.LAB_TIMETABLE_FILE
-
-    wb = openpyxl.load_workbook(file_to_check)
-    sheet = wb[month_name]
-
-    # Find and clear the booking
-    for row in sheet.iter_rows():
-        for cell in row:
-            if cell.value == booking["Purpose"]:
-                cell.value = ""  # FREE SLOT
-
-    wb.save(file_to_check)
-
-    # Remove booking from log
-    df = df.drop(index=booking_index).reset_index(drop=True)
-    df.to_excel(logic.BOOKINGS_FILE, index=False)
-
-    return {"message": "Booking cancelled successfully"}
+    return result
