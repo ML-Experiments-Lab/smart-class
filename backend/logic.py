@@ -97,7 +97,7 @@ def log_booking(email, resource_type, resource_name, time_slot, date, purpose):
         
     new_booking = pd.DataFrame([{
         "Email": email, "Type": resource_type, "Resource": resource_name, 
-        "Date": date, "Time Slot": time_slot, "Purpose": purpose
+        "Date": date, "time_slot": "|".join(time_slot.split("|")), "Purpose": purpose
     }])
     df = pd.concat([df, new_booking], ignore_index=True)
     df.to_excel(BOOKINGS_FILE, index=False)
@@ -639,15 +639,84 @@ def book_slots_in_excel(slots_to_book, month_name, target_column, purpose, resou
     
     wb = openpyxl.load_workbook(file_to_check)
     sheet = wb[month_name]
-    
+
     for row_num in slots_to_book:
+        current_val = sheet.cell(row=row_num, column=target_column).value
+        
+        if current_val and str(current_val).strip().upper() not in ["", "NA"]:
+            return False  # Already booked
+        
         sheet.cell(row=row_num, column=target_column).value = purpose
         
     wb.save(file_to_check)
-    
-    # Save the updated timetable back to the cloud
+
     sync_up("cr_timetable.xlsx" if resource_type == "Classroom" else "lab_timetable.xlsx")
+
     return True
+
+def cancel_booking(email, resource_type, resource_name, date, time_slots):
+    file_to_check = CR_TIMETABLE_FILE if resource_type == "Classroom" else LAB_TIMETABLE_FILE
+
+    if not os.path.exists(file_to_check):
+        return {"error": "Timetable not found."}
+
+    # Load bookings log
+    if not os.path.exists(BOOKINGS_FILE):
+        return {"error": "No bookings found."}
+
+    df = pd.read_excel(BOOKINGS_FILE)
+
+    # Filter matching bookings
+    matching = df[
+        (df["Email"] == email) &
+        (df["Type"] == resource_type) &
+        (df["Resource"] == resource_name) &
+        (df["Date"] == date)
+    ]
+
+    if matching.empty:
+        return {"error": "No matching booking found."}
+
+    # Open timetable
+    wb = openpyxl.load_workbook(file_to_check)
+    sheet_name = datetime.datetime.strptime(date, "%Y-%m-%d").strftime("%b")
+
+    if sheet_name not in wb.sheetnames:
+        return {"error": "Sheet not found."}
+
+    sheet = wb[sheet_name]
+
+    # Find column of that date
+    day_number = datetime.datetime.strptime(date, "%Y-%m-%d").day
+    target_column = None
+
+    for row in sheet.iter_rows():
+        for cell in row:
+            if str(cell.value).strip() == str(day_number):
+                target_column = cell.column
+                break
+        if target_column:
+            break
+
+    if not target_column:
+        return {"error": "Date column not found."}
+
+    # Remove booking from Excel
+    for row in range(1, sheet.max_row + 1):
+        time_val = sheet.cell(row, 1).value
+        if time_val and str(time_val).strip() in time_slots:
+            sheet.cell(row=row, column=target_column).value = "NA"
+
+    wb.save(file_to_check)
+
+    # Remove from booking log
+    df = df.drop(matching.index)
+    df.to_excel(BOOKINGS_FILE, index=False)
+
+    sync_up("bookings.xlsx")
+    sync_up("cr_timetable.xlsx" if resource_type == "Classroom" else "lab_timetable.xlsx")
+
+    return {"message": "Booking cancelled successfully"}
 
 # ==========================================
 # 6. UTILITY ANALYSIS LOGIC
