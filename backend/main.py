@@ -154,3 +154,56 @@ def get_utility(req: UtilityRequest):
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+@app.post("/admin/cancel")
+def cancel_booking(data: dict):
+    """
+    Cancels a booking:
+    - Removes entry from bookings.xlsx
+    - Frees slot in timetable
+    """
+
+    booking_index = data.get("index")
+
+    if booking_index is None:
+        raise HTTPException(status_code=400, detail="Booking index required")
+
+    # Load bookings
+    if not os.path.exists(logic.BOOKINGS_FILE):
+        raise HTTPException(status_code=400, detail="No bookings file found")
+
+    df = pd.read_excel(logic.BOOKINGS_FILE)
+
+    if booking_index >= len(df):
+        raise HTTPException(status_code=400, detail="Invalid booking index")
+
+    booking = df.iloc[booking_index]
+
+    resource_type = booking["Type"]
+    resource_name = booking["Resource"]
+    date = booking["Date"]
+    time_slot = booking["Time Slot"]
+
+    # Convert date → month
+    import datetime
+    selected_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    month_name = selected_date.strftime("%b")
+
+    file_to_check = logic.CR_TIMETABLE_FILE if resource_type == "Classroom" else logic.LAB_TIMETABLE_FILE
+
+    wb = openpyxl.load_workbook(file_to_check)
+    sheet = wb[month_name]
+
+    # Find and clear the booking
+    for row in sheet.iter_rows():
+        for cell in row:
+            if cell.value == booking["Purpose"]:
+                cell.value = ""  # FREE SLOT
+
+    wb.save(file_to_check)
+
+    # Remove booking from log
+    df = df.drop(index=booking_index).reset_index(drop=True)
+    df.to_excel(logic.BOOKINGS_FILE, index=False)
+
+    return {"message": "Booking cancelled successfully"}
