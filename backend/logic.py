@@ -665,6 +665,9 @@ def cancel_booking(email, resource_type, resource_name, date, time_slots):
         return {"error": "No bookings found."}
 
     df = pd.read_excel(BOOKINGS_FILE)
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+
+    date = str(date)
 
     # Filter matching bookings
     matching = df[
