@@ -122,6 +122,10 @@ with tab3:
     st.subheader("All Bookings")
 
     if st.button("Refresh Logs"):
+        st.session_state["refresh_logs"] = True
+
+    # Fetch logs
+    try:
         res = requests.get("https://smart-class-api-xez6.onrender.com/admin/bookings")
 
         if res.status_code == 200:
@@ -130,39 +134,60 @@ with tab3:
             if logs:
                 df = pd.DataFrame(logs)
 
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                # Show table (clean)
+                st.dataframe(df, width='stretch', hide_index=True)
 
-                st.markdown("### ❌ Cancel Booking")
+                st.markdown("### ❌ Cancel Booking (Row-wise)")
 
-                booking_index = st.number_input(
-                    "Enter booking index to cancel",
-                    min_value=0,
-                    max_value=len(df)-1,
-                    step=1
-                )
+                # Loop each row with cancel button
+                for i, row in df.iterrows():
+                    with st.container():
+                        col1, col2 = st.columns([8, 1])
 
-                if st.button("Cancel Booking"):
-                    selected_row = df.iloc[int(booking_index)]
+                        # Show row info nicely
+                        with col1:
+                            st.markdown(f"""
+                            **📧 Email:** {row['Email']}  
+                            **🏫 Type:** {row['Type']}  
+                            **📍 Resource:** {row['Resource']}  
+                            **📅 Date:** {row['Date']}  
+                            **⏰ Time:** {row['Time Slot']}  
+                            **📝 Purpose:** {row['Purpose']}
+                            """)
 
-                    payload = {
-                        "email": selected_row["Email"],
-                        "resource_type": selected_row["Type"],
-                        "resource_name": selected_row["Resource"],
-                        "date": selected_row["Date"],
-                        "time_slots": selected_row["Time Slot"].split(" | ")
-                    }
+                        # Cancel button
+                        with col2:
+                            if st.button("❌ Cancel", key=f"cancel_{i}"):
 
-                    cancel_res = requests.post(
-                        "https://smart-class-api-xez6.onrender.com/admin/cancel",
-                        json=payload
-                    )
+                                payload = {
+                                    "email": row["Email"],
+                                    "resource_type": row["Type"],
+                                    "resource_name": row["Resource"],
+                                    "date": str(row["Date"]),
+                                    "time_slots": row["Time Slot"].split(" | ")
+                                }
 
-                    if cancel_res.status_code == 200:
-                        st.success("Booking cancelled successfully ✅")
-                    else:
-                        st.error(cancel_res.json().get("detail", "Error cancelling booking"))
+                                cancel_res = requests.post(
+                                    "https://smart-class-api-xez6.onrender.com/admin/cancel",
+                                    json=payload
+                                )
+
+                                if cancel_res.status_code == 200:
+                                    st.success("Booking cancelled successfully ✅")
+                                    st.rerun()
+                                else:
+                                    try:
+                                        st.error(cancel_res.json().get("detail", "Error cancelling booking"))
+                                    except:
+                                        st.error(f"Error: {cancel_res.text}")
+
+                        st.divider()
 
             else:
                 st.info("No bookings found yet.")
+
         else:
             st.error("Could not fetch bookings.")
+
+    except requests.exceptions.ConnectionError:
+        st.error("Backend connection failed.")
