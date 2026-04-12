@@ -142,7 +142,15 @@ with tab3:
                 )
 
                 if st.button("Cancel Booking"):
-                    payload = {"index": int(booking_index)}
+                    selected_row = df.iloc[int(booking_index)]
+
+                    payload = {
+                        "email": selected_row["Email"],
+                        "resource_type": selected_row["Type"],
+                        "resource_name": selected_row["Resource"],
+                        "date": selected_row["Date"],
+                        "time_slots": selected_row["Time Slot"].split(" | ")
+                    }
 
                     cancel_res = requests.post(
                         "https://smart-class-api-xez6.onrender.com/admin/cancel",
