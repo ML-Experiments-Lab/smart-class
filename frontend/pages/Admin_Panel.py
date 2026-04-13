@@ -1,6 +1,13 @@
+import sys
+import os
 import streamlit as st
 import pandas as pd
-import logic  # <--- Direct import!
+
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../backend'))
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
+import logic
 
 if st.session_state.get("role") != "user":
     st.warning("Please log in as a user to access this page.")
