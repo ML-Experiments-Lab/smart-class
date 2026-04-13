@@ -1,194 +1,139 @@
 import streamlit as st
-import requests
-import logic
 import pandas as pd
-import plotly.graph_objects as go
+import logic  # <--- Direct import!
 
-if st.session_state.get("role") != "admin":
-    st.error("Access Denied: Admins Only")
+if st.session_state.get("role") != "user":
+    st.warning("Please log in as a user to access this page.")
     st.stop()
 
+# Custom CSS
 st.markdown('''
 <style>
-.main-header { background-color: #ffcad4; padding: 20px; text-align: center; border-radius: 10px; font-size: 28px; font-weight: 700; margin-bottom: 2rem;}
-.metric-box { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); border: 1px solid #ffe4e8;}
-.metric-title { font-size:16px; color:#555; }
-.metric-value { font-size:32px; font-weight:700; color:#ff6b81; }
+.main-header {
+    background-color: #ffc1cc;
+    padding: 20px;
+    text-align: center;
+    color: #333;
+    font-size: 28px;
+    font-weight: 700;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+.to-label { text-align:center; font-size:1.4rem; font-weight:bold; color:#ff6b81; }
+.stButton>button { background-color:#ff6b81; color:white; border:none; border-radius:8px; }
 [data-testid="stSidebar"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 </style>
 ''', unsafe_allow_html=True)
 
-st.markdown('<div class="main-header">Admin Dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">Book a Classroom or Lab</div>', unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["Upload Timetable", "Utility Analysis", "Booking Logs"])
+# Search Form
+resource_type = st.radio("Looking for a:", ["Classroom", "Lab"], horizontal=True)
+selected_date = st.date_input("Select Date", value=None)
 
-with tab1:
-    st.subheader("Upload Base Timetables")
-    st.info("Upload the weekly template. The system will automatically generate the full year.")
-    
-    upload_type = st.radio("Timetable Type:", ["Classroom", "Lab"], horizontal=True)
-    uploaded_file = st.file_uploader("Upload .xlsx", type=["xlsx"])
-    year = st.number_input("Year", min_value=2024, max_value=2050, value=2026)
-    
-    if st.button("Process & Generate Full Year"):
-        if uploaded_file:
-            with st.spinner("Processing file... This may take a few moments."):
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
-                data = {"year": year}
-                
-                if upload_type == "Classroom":
-                    # For classroom, we also send the default sheet name
-                    data["sheet_name"] = "FEST_Room Occupancy" 
-                    url = "https://smart-class-api-xez6.onrender.com/admin/upload/classroom"
-                else:
-                    url = "https://smart-class-api-xez6.onrender.com/admin/upload/lab"
-                    
-                res = requests.post(url, files=files, data=data)
-                
-                if res.status_code == 200:
-                    st.success(res.json().get("message", "Processed successfully!"))
-                else:
-                    st.error(res.json().get("detail", "An error occurred during processing."))
-        else:
-            st.error("Please upload a file first.")
+st.markdown("### Time Slot")
+col_h1, col_m1, col_to, col_h2, col_m2 = st.columns([1,1,0.5,1,1])
+with col_h1:
+    start_hour = st.selectbox("start_h", [f"{i:02d}" for i in range(24)], label_visibility="collapsed")
+with col_m1:
+    start_min = st.selectbox("start_m", [f"{i:02d}" for i in range(60)], label_visibility="collapsed")
+with col_to:
+    st.markdown("<div class='to-label'>to</div>", unsafe_allow_html=True)
+with col_h2:
+    end_hour = st.selectbox("end_h", [f"{i:02d}" for i in range(24)], label_visibility="collapsed")
+with col_m2:
+    end_min = st.selectbox("end_m", [f"{i:02d}" for i in range(60)], label_visibility="collapsed")
 
-with tab2:
-    st.subheader("Utility Analysis")
-    ut_type = st.radio("Resource Type:", ["Classroom", "Lab"], horizontal=True, key="ut_radio")
-    
-    # Fetch resource names dynamically from the backend
-    try:
-        res_req = requests.get(f"https://smart-class-api-xez6.onrender.com/resources?resource_type={ut_type}")
-        available_resources = res_req.json().get("resources", []) if res_req.status_code == 200 else []
-    except requests.exceptions.ConnectionError:
-        available_resources = []
-        st.error("Could not connect to backend to fetch resources.")
-    
-    # Create the proper dropdown menu
-    options = ["All"] + available_resources
-    ut_resource = st.selectbox("Select Resource to Analyze:", options=options)
-    
-    if st.button("Generate Analysis"):
-        with st.spinner("Calculating..."):
-            payload = {"resource_type": ut_type, "selected_resource": ut_resource}
-            res = requests.post("https://smart-class-api-xez6.onrender.com/utility", json=payload)
+purpose = st.text_input("Purpose of Booking (Class / Section)").strip()
+
+if st.button("Search Available Slots", use_container_width=True):
+    if not selected_date or not purpose:
+        st.error("Please select a date and enter a purpose.")
+    else:
+        start_time = f"{start_hour}:{start_min}"
+        end_time = f"{end_hour}:{end_min}"
+        
+        with st.spinner("Searching..."):
+            # Call logic.py directly! Instant results.
+            result = logic.search_free_slots(str(selected_date), start_time, end_time, resource_type)
             
-            if res.status_code == 200:
-                data = res.json()
-                occupied = data["occupied"]
-                free = data["free"]
-                total = data["total"]
+            if "error" in result:
+                st.error(result["error"])
+                st.session_state.search_results = None
+            else:
+                st.session_state.search_results = result.get("slots", [])
+                st.session_state.search_params = {
+                    "date": str(selected_date),
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "resource_type": resource_type
+                }
+                st.session_state.purpose = purpose
+
+# Display Results & Booking Logic
+if st.session_state.get("search_results") is not None:
+    slots = st.session_state.search_results
+    
+    if not slots:
+        st.warning("No free slots found for the selected time window.")
+    else:
+        st.success(f"Found **{len(slots)}** free slot(s).")
+        
+        # Build display table
+        data = [{"No.": i+1, "Resource": s["resource"], "Time": s["time_slot"]} for i, s in enumerate(slots)]
+        st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
+        
+        st.markdown("### Book Slots")
+        options = [f"{d['No.']}. {d['Resource']} — {d['Time']}" for d in data]
+        selected = st.multiselect("Choose slots to book", options=options, label_visibility="collapsed")
+        
+        if selected:
+            if st.button(f"Book {len(selected)} Selected Slot(s)", use_container_width=True):
+                selected_indices = [int(opt.split(".")[0]) - 1 for opt in selected]
                 
-                if total == 0:
-                    st.warning("No data found for this resource. Is the timetable uploaded?")
-                else:
-                    col1, col2 = st.columns([1,1.2])
-                    with col1:
-                        st.markdown(f'''
-                        <div class="metric-box">
-                        <div class="metric-title">Occupied Slots</div>
-                        <div class="metric-value">{occupied}</div>
-                        </div><br>
-                        <div class="metric-box">
-                        <div class="metric-title">Free Slots</div>
-                        <div class="metric-value">{free}</div>
-                        </div><br>
-                        <div class="metric-box">
-                        <div class="metric-title">Total Slots</div>
-                        <div class="metric-value">{total}</div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-
-                    with col2:
-                        fig = go.Figure(data=[go.Pie(
-                            labels=["Occupied","Free"],
-                            values=[occupied,free],
-                            hole=0,
-                            textinfo='none',
-                            marker=dict(colors=["#EA5F89","#9B3192"]),
-                            hovertemplate="<b>%{label}</b><br>Slots: %{value}<br>%{percent}<extra></extra>"
-                        )])
-                        fig.update_layout(
-                            height=350,
-                            showlegend=True,
-                            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5),
-                            margin=dict(t=10,b=10,l=10,r=10)
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.error(res.json().get("detail", "Error calculating utility."))
-
-with tab3:
-    st.subheader("All Bookings")
-
-    if st.button("Refresh Logs"):
-        st.rerun()
-
-    try:
-        res = requests.get("https://smart-class-api-xez6.onrender.com/admin/bookings")
-
-        if res.status_code == 200:
-            logs = res.json()
-
-            if logs:
-                df = pd.DataFrame(logs)
-
-                # ✅ Header row (clean UI like table)
-                header = st.columns([2,1,1,1,2,1,1])
-                header[0].markdown("**Email**")
-                header[1].markdown("**Type**")
-                header[2].markdown("**Resource**")
-                header[3].markdown("**Date**")
-                header[4].markdown("**Time Slot**")
-                header[5].markdown("**Purpose**")
-                header[6].markdown("**Action**")
-
-                st.markdown("---")
-
-                # ✅ Rows
-                for i, row in df.iterrows():
-                    cols = st.columns([2,1,1,1,2,1,1])
-
-                    cols[0].write(row["Email"])
-                    cols[1].write(row["Type"])
-                    cols[2].write(row["Resource"])
-                    cols[3].write(str(row["Date"]))
-                    cols[4].write(row["Time Slot"])
-                    cols[5].write(row["Purpose"])
-
-                    # ✅ Cancel button (same row)
-                    if cols[6].button("❌ Cancel", key=f"cancel_{i}"):
-
-                        payload = {
-                            "email": row["Email"],
-                            "resource_type": row["Type"],
-                            "resource_name": row["Resource"],
-                            "date": str(row["Date"]),
-                            "time_slots": row["Time Slot"].split(" | ")
+                # Group by resource
+                bookings_by_resource = {}
+                for idx in selected_indices:
+                    slot_data = slots[idx]
+                    res_name = slot_data["resource"]
+                    if res_name not in bookings_by_resource:
+                        bookings_by_resource[res_name] = {
+                            "month_name": slot_data["month"],
+                            "target_column": slot_data["target_column"],
+                            "rows": [],
+                            "labels": []
                         }
-
-                        cancel_res = requests.post(
-                            "https://smart-class-api-xez6.onrender.com/admin/cancel",
-                            json=payload
+                    bookings_by_resource[res_name]["rows"].append(slot_data["row"])
+                    bookings_by_resource[res_name]["labels"].append(slot_data["time_slot"])
+                
+                all_success = True
+                for res_name, b_data in bookings_by_resource.items():
+                    
+                    # 1. Write to Excel instantly using logic.py
+                    success = logic.book_slots_in_excel(
+                        slots_to_book=b_data["rows"],
+                        month_name=b_data["month_name"],
+                        target_column=b_data["target_column"],
+                        purpose=st.session_state.purpose,
+                        resource_type=st.session_state.search_params["resource_type"]
+                    )
+                    
+                    if success:
+                        # 2. Log it instantly
+                        time_slots_str = " | ".join(b_data["labels"])
+                        logic.log_booking(
+                            email=st.session_state.get("email", "unknown_user"),
+                            resource_type=st.session_state.search_params["resource_type"],
+                            resource_name=res_name,
+                            time_slot=time_slots_str,
+                            date=st.session_state.search_params["date"],
+                            purpose=st.session_state.purpose
                         )
-
-                        if cancel_res.status_code == 200:
-                            st.success("Booking cancelled successfully ✅")
-                            st.rerun()
-                        else:
-                            try:
-                                st.error(cancel_res.json().get("detail", "Error cancelling booking"))
-                            except:
-                                st.error(f"Error: {cancel_res.text}")
-
-                    st.markdown("---")
-
-            else:
-                st.info("No bookings found yet.")
-
-        else:
-            st.error("Could not fetch bookings.")
-
-    except requests.exceptions.ConnectionError:
-        st.error("Backend connection failed.")
+                    else:
+                        all_success = False
+                        st.error(f"Failed to book {res_name}: Slot may already be taken.")
+                
+                if all_success:
+                    st.success("✅ Slots booked successfully!")
+                    st.session_state.search_results = None # Clear after booking
