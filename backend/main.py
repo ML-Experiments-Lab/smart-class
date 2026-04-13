@@ -1,8 +1,14 @@
 import streamlit as st
-import logic
 import pandas as pd
 import plotly.graph_objects as go
 import os
+
+# Tell Python to look in the backend folder!
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../backend'))
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
+import logic
 
 if st.session_state.get("role") != "admin":
     st.error("Access Denied: Admins Only")
