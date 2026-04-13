@@ -2,7 +2,7 @@ name: Sync to Hugging Face
 on:
   push:
     branches: [main]
-  force_push: true
+  workflow_dispatch: # Allows you to run it manually
 
 jobs:
   sync-to-hub:
@@ -15,4 +15,5 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        # Note: Added the --force flag inside the command itself
         run: git push --force https://Ishuuuuu:$HF_TOKEN@huggingface.co/spaces/Ishuuuuu/smart-class main
