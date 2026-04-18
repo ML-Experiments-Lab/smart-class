@@ -16,4 +16,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # Note: Added the --force flag inside the command itself
-        run: git push --force https://Ishuuuuu:$HF_TOKEN@huggingface.co/spaces/Ishuuuuu/smart-class main
+        run: git push --force https://adaniuni:$HF_TOKEN@huggingface.co/spaces/adaniuni/Classroom_Occupancy main
